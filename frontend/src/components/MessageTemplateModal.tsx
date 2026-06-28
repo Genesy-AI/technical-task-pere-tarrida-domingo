@@ -106,7 +106,16 @@ export const MessageTemplateModal: FC<MessageTemplateModalProps> = ({
     }
   }, [isOpen, handleClose])
 
-  const availableFields = ['firstName', 'lastName', 'email', 'jobTitle', 'companyName', 'countryCode']
+  const fieldGroups = [
+    {
+      label: 'Personal',
+      fields: ['firstName', 'lastName', 'email', 'phoneNumber', 'linkedInUrl'],
+    },
+    {
+      label: 'Work',
+      fields: ['jobTitle', 'companyName', 'countryCode', 'yrsCurrentCompany'],
+    },
+  ]
 
   const insertField = (field: string) => {
     if (textareaRef.current) {
@@ -156,17 +165,25 @@ export const MessageTemplateModal: FC<MessageTemplateModalProps> = ({
                 Message Template
               </label>
               <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-sm text-gray-600">Insert field:</span>
-                  {availableFields.map((field) => (
-                    <button
-                      key={field}
-                      type="button"
-                      onClick={() => insertField(field)}
-                      className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
-                    >
-                      {`{${field}}`}
-                    </button>
+                <div className="space-y-2">
+                  {fieldGroups.map((group) => (
+                    <div key={group.label} className="flex flex-col flex-wrap gap-2">
+                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-14 flex-shrink-0">
+                        {group.label}
+                      </span>
+                      <div className="flex flex-wrap gap-2 flex-row items-center justify-start">
+                        {group.fields.map((field) => (
+                          <button
+                            key={field}
+                            type="button"
+                            onClick={() => insertField(field)}
+                            className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
+                          >
+                            {`{${field}}`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
                 <textarea

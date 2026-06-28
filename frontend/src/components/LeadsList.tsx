@@ -10,6 +10,7 @@ export const LeadsList: FC = () => {
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [isEnrichDropdownOpen, setIsEnrichDropdownOpen] = useState(false)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [phoneEnrichProgress, setPhoneEnrichProgress] = useState<{ completed: number; total: number } | null>(null)
   const queryClient = useQueryClient()
 
   const leads = useQuery({
@@ -50,6 +51,32 @@ export const LeadsList: FC = () => {
       toast.error('Failed to verify emails. Please try again.')
     }
   })
+
+  const handleFindPhoneNumbers = async (ids: number[]) => {
+    setIsEnrichDropdownOpen(false)
+    setPhoneEnrichProgress({ completed: 0, total: ids.length })
+    try {
+      const { foundCount, errorCount } = await api.leads.enrichPhoneNumbers({ leadIds: ids }, (e) =>
+        setPhoneEnrichProgress(e)
+      )
+      queryClient.invalidateQueries({ queryKey: ['leads', 'getMany'] })
+      if (foundCount > 0 && errorCount === 0) {
+        toast.success(`${foundCount} phone number${foundCount !== 1 ? 's' : ''} found`)
+      } else if (foundCount > 0 && errorCount > 0) {
+        toast.success(`${foundCount} phone number${foundCount !== 1 ? 's' : ''} found (${errorCount} lead${errorCount !== 1 ? 's' : ''} failed)`)
+      } else if (errorCount === ids.length) {
+        toast.error('Enrichment failed — check that Temporal is running.')
+      } else if (errorCount > 0) {
+        toast.error(`No phones found — ${errorCount} lead${errorCount !== 1 ? 's' : ''} encountered errors.`)
+      } else {
+        toast.error('No phone numbers have been found.')
+      }
+    } catch {
+      toast.error('Failed to find phone numbers. Please try again.')
+    } finally {
+      setPhoneEnrichProgress(null)
+    }
+  }
 
   const handleSelectAll = (checked: boolean) => {
     if (checked && leads.data) {
@@ -159,6 +186,17 @@ export const LeadsList: FC = () => {
                       </div>
                     </button>
                     <button
+                      onClick={() => handleFindPhoneNumbers(selectedLeads)}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center">
+                        <svg className="mr-3 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                        Find Phone Number
+                      </div>
+                    </button>
+                    <button
                       onClick={() => {
                         toast.error('Gender guessing feature is not yet implemented')
                         setIsEnrichDropdownOpen(false)
@@ -203,6 +241,20 @@ export const LeadsList: FC = () => {
         </div>
       </div>
 
+      {phoneEnrichProgress && (
+        <div className="px-6 py-2 bg-blue-50 border-b border-blue-100 flex-shrink-0 flex items-center gap-3">
+          <span className="text-sm text-blue-700 whitespace-nowrap">
+            Finding Phone... {phoneEnrichProgress.completed}/{phoneEnrichProgress.total}
+          </span>
+          <div className="flex-1 bg-blue-200 rounded-full h-2">
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${(phoneEnrichProgress.completed / phoneEnrichProgress.total) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 overflow-hidden">
         <div className="h-full overflow-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -233,6 +285,15 @@ export const LeadsList: FC = () => {
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
                   Country
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                  Phone
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                  Yrs. at Company
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                  LinkedIn
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
                   Message
@@ -274,6 +335,27 @@ export const LeadsList: FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{lead.countryCode || '-'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{lead.phoneNumber || '-'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{lead.yrsCurrentCompany ?? '-'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {lead.linkedInUrl ? (
+                      <a
+                        href={lead.linkedInUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:text-blue-800 truncate max-w-[120px] block"
+                        title={lead.linkedInUrl}
+                      >
+                        View Profile
+                      </a>
+                    ) : (
+                      <div className="text-sm text-gray-900">-</div>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900 max-w-xs truncate" title={lead.message || ''}>

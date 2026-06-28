@@ -7,6 +7,9 @@ export interface CsvLead {
   jobTitle?: string
   countryCode?: string
   companyName?: string
+  phoneNumber?: string
+  yrsCurrentCompany?: number
+  linkedInUrl?: string
   isValid: boolean
   errors: string[]
   rowIndex: number
@@ -17,12 +20,19 @@ export const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email)
 }
 
+
+export const isValidLinkedInUrl = (url: string): boolean => {
+  const linkedInRegex = /^https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9_%-]+\/?$/
+  return linkedInRegex.test(url)
+}
+
 export const parseCsv = (content: string): CsvLead[] => {
-  if (!content?.trim()) {
+  const cleanContent = content.replace(/^\uFEFF/, '')
+  if (!cleanContent?.trim()) {
     throw new Error('CSV content cannot be empty')
   }
 
-  const parseResult = Papa.parse<Record<string, string>>(content, {
+  const parseResult = Papa.parse<Record<string, string>>(cleanContent, {
     header: true,
     skipEmptyLines: true,
     transform: (value) => value.trim(),
@@ -73,6 +83,15 @@ export const parseCsv = (content: string): CsvLead[] => {
         case 'companyname':
           lead.companyName = trimmedValue || undefined
           break
+        case 'phonenumber':
+          lead.phoneNumber = trimmedValue || undefined
+          break
+        case 'yearsinrole':
+          lead.yrsCurrentCompany = trimmedValue ? Number(trimmedValue) : undefined
+          break
+        case 'linkedinurl':
+          lead.linkedInUrl = trimmedValue || undefined
+          break
       }
     })
 
@@ -87,6 +106,19 @@ export const parseCsv = (content: string): CsvLead[] => {
       errors.push('Email is required')
     } else if (!isValidEmail(lead.email)) {
       errors.push('Invalid email format')
+    }
+    if (lead.yrsCurrentCompany !== undefined) {
+      const parsed = lead.yrsCurrentCompany
+      if (isNaN(parsed) || !Number.isInteger(parsed) || parsed < 0) {
+        errors.push('Years at current company must be a non-negative integer')
+        lead.yrsCurrentCompany = undefined
+      }
+    }
+    if (lead.linkedInUrl !== undefined) {
+      if (!isValidLinkedInUrl(lead.linkedInUrl)) {
+        errors.push('Invalid LinkedIn URL (expected format: https://linkedin.com/in/username)')
+        lead.linkedInUrl = undefined
+      }
     }
 
     data.push({

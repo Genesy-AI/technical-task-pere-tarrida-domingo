@@ -52,7 +52,14 @@ export const CsvImportModal: FC<CsvImportModalProps> = ({ isOpen, onClose }) => 
     const reader = new FileReader()
     reader.onload = (e) => {
       try {
-        const content = e.target?.result as string
+        const buffer = e.target?.result as ArrayBuffer
+        let content: string
+        try {
+          content = new TextDecoder('UTF-8', { fatal: true }).decode(buffer)
+        } catch {
+          content = new TextDecoder('windows-1252').decode(buffer)
+        }
+        content = content.replace(/^\uFEFF/, '')
         const parsed = parseCsv(content)
         setCsvData(parsed)
         setIsProcessing(false)
@@ -66,7 +73,7 @@ export const CsvImportModal: FC<CsvImportModalProps> = ({ isOpen, onClose }) => 
       toast.error('Error reading file')
       setIsProcessing(false)
     }
-    reader.readAsText(file)
+    reader.readAsArrayBuffer(file)
   }
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -100,6 +107,9 @@ export const CsvImportModal: FC<CsvImportModalProps> = ({ isOpen, onClose }) => 
         jobTitle: lead.jobTitle || undefined,
         countryCode: lead.countryCode || undefined,
         companyName: lead.companyName || undefined,
+        phoneNumber: lead.phoneNumber || undefined,
+        yrsCurrentCompany: lead.yrsCurrentCompany,
+        linkedInUrl: lead.linkedInUrl || undefined,
       }))
 
       return api.leads.bulkImport({ leads: leadsToImport })
@@ -238,7 +248,7 @@ export const CsvImportModal: FC<CsvImportModalProps> = ({ isOpen, onClose }) => 
                   </p>
                   <p className="text-sm text-gray-500">
                     CSV must include: firstName, lastName, email (required). Optional: jobTitle, countryCode,
-                    companyName
+                    companyName, phoneNumber, yearsInRole, linkedInURL
                   </p>
                 </div>
               )}
